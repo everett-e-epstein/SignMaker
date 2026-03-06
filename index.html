@@ -111,6 +111,17 @@
         <div class="color-row" id="outlineSelector"></div>
       </div>
 
+      <div>
+        <div class="lbl">outline + cross bar thickness</div>
+        <input id="strokeThicknessSlider" type="range" class="pill-slider"
+               min="0.04" max="0.22" value="0.115" step="0.0025">
+        <div class="slider-hint"><span>thin</span><span>thick</span></div>
+      </div>
+
+      <div>
+        <div class="lbl">cross bar</div>
+        <button class="pause-btn" id="crossbarBtn" type="button">cross bar off</button>
+      </div>
 
       <div>
         <div class="lbl">shadow color</div>
@@ -206,6 +217,8 @@ const S = {
   shape:     'octagon',
   interior:  'red',
   outline:   'red',
+  crossbar:  false,
+  strokeThickness: 0.115,
   weight:    300,
   variant:   'A',
   fontSize:  0.21,
@@ -358,10 +371,100 @@ function roundedPolyPath(pts, r) {
   return d + 'Z';
 }
 
+function signSvgHeight(shape, sz) {
+  return (shape === 'rounded-rect') ? Math.round(sz * 0.58) : sz;
+}
+
+function outlineRingPx(shape, sz, svgH = signSvgHeight(shape, sz)) {
+  return Math.max(2, Math.min(Math.min(sz, svgH) * 0.24, sz * S.strokeThickness));
+}
+
+function crossbarThicknessPx(shape, sz, svgH = signSvgHeight(shape, sz)) {
+  return Math.max(4, Math.min(Math.min(sz, svgH) * 0.28, outlineRingPx(shape, sz, svgH)));
+}
+
+function textBounds(shape, sz, svgH, ring) {
+  if (shape === 'triangle') {
+    const hTri = sz * Math.sqrt(3) / 2;
+    const ty = (sz - hTri) / 2;
+    const centerY = ty + hTri / 3;
+    const inR = hTri / 3;
+    const inset = ring * 1.15;
+    const sc = Math.max(0, (inR - inset) / inR);
+    const innerBase = sz * sc;
+    const innerH = hTri * sc;
+    const widthFactor = Math.max(0.42, 0.72 - (ring / sz) * 0.45);
+    const heightFactor = Math.max(0.34, 0.60 - (ring / sz) * 0.50);
+    const width = Math.max(24, innerBase * widthFactor);
+    const height = Math.max(24, innerH * heightFactor);
+    return {
+      left: (sz - width) / 2,
+      top: centerY - height / 2,
+      width,
+      height,
+      centerY,
+    };
+  }
+
+  const extraInset = Math.max(sz * 0.015, ring * 0.42);
+  const padH = ((shape === 'circle') ? ring + sz * 0.08 : ring + sz * 0.03) + extraInset;
+  const padV = ring + sz * 0.03 + extraInset * 0.9;
+  return {
+    left: padH,
+    top: padV,
+    width: Math.max(24, sz - padH * 2),
+    height: Math.max(24, svgH - padV * 2),
+    centerY: svgH / 2,
+  };
+}
+
+function interiorClipMarkup(shape, sz, ring, svgH = (shape === 'rounded-rect' ? Math.round(sz * 0.58) : sz)) {
+  if (shape === 'circle') {
+    return `<circle cx="${sz/2}" cy="${sz/2}" r="${(sz/2 - ring).toFixed(2)}"/>`;
+  }
+  if (shape === 'triangle') {
+    const h_y = sz * Math.sqrt(3) / 2;
+    const sc = Math.max(0, (h_y / 3 - ring * 1.15) / (h_y / 3));
+    return `<path d="${roundedPolyPath(yieldVerts(sz, ring * 1.15), Math.max(2, sz * 0.053 * sc))}"/>`;
+  }
+  if (shape === 'square') {
+    return `<rect x="${ring}" y="${ring}" width="${sz-ring*2}" height="${sz-ring*2}"/>`;
+  }
+  if (shape === 'rounded-rect') {
+    const ri = Math.max(sz * 0.1 - ring * 0.5, 3);
+    return `<rect x="${ring}" y="${ring}" width="${sz-ring*2}" height="${svgH-ring*2}" rx="${ri}"/>`;
+  }
+  if (shape === 'octagon') {
+    return `<polygon points="${octPts(sz, ring)}"/>`;
+  }
+  return '';
+}
+
+function crossbarGroupMarkup(shape, sz, fill, clipId) {
+  const svgH = signSvgHeight(shape, sz);
+  const cx = sz / 2;
+  const cy = svgH / 2;
+  const barLen = Math.hypot(sz, svgH) * 1.35;
+  const barThick = crossbarThicknessPx(shape, sz, svgH);
+  return `<g clip-path="url(#${clipId})"><rect x="${(cx - barLen / 2).toFixed(2)}" y="${(cy - barThick / 2).toFixed(2)}" width="${barLen.toFixed(2)}" height="${barThick.toFixed(2)}" rx="${(barThick / 2).toFixed(2)}" fill="${fill}" transform="rotate(45 ${cx.toFixed(2)} ${cy.toFixed(2)})"/></g>`;
+}
+
+function crossbarSVG(shape, sz, outline) {
+  if (!S.crossbar) return '';
+  const svgH = signSvgHeight(shape, sz);
+  const ring = outlineRingPx(shape, sz, svgH);
+  const ns = 'xmlns="http://www.w3.org/2000/svg"';
+  const clipId = 'crossbar_clip';
+  const gradId = 'crossbar_fill';
+  const fill = outline === 'aluminum' ? alumFill(gradId) : outline;
+  const defs = `<defs><clipPath id="${clipId}">${interiorClipMarkup(shape, sz, ring, svgH)}</clipPath>${outline === 'aluminum' ? alumGradSVG(gradId, svgH) : ''}</defs>`;
+  return `<svg width="${sz}" height="${svgH}" viewBox="0 0 ${sz} ${svgH}" ${ns}>${defs}${crossbarGroupMarkup(shape, sz, fill, clipId)}</svg>`;
+}
+
 // ── Sign SVG string ────────────────────────────────────────────
 function signSVG(shape, sz, interior, outline) {
-  const ring = sz * 0.115;
-  const svgH = (shape === 'rounded-rect') ? Math.round(sz * 0.58) : sz;
+  const svgH = signSvgHeight(shape, sz);
+  const ring = outlineRingPx(shape, sz, svgH);
   const ns   = 'xmlns="http://www.w3.org/2000/svg"';
   const open = `<svg width="${sz}" height="${svgH}" viewBox="0 0 ${sz} ${svgH}" ${ns}>`;
 
@@ -433,9 +536,8 @@ function iconSVG(shape, sz) {
 // ── Build sign into a face element ────────────────────────────
 function buildFace(faceEl, sz, interior, outline, showText) {
   const shape = S.shape;
-  const ring  = sz * 0.115;
-  const isRR  = (shape === 'rounded-rect');
-  const svgH  = isRR ? Math.round(sz * 0.58) : sz;
+  const svgH  = signSvgHeight(shape, sz);
+  const ring  = outlineRingPx(shape, sz, svgH);
 
   faceEl.innerHTML = '';
   faceEl.style.width  = sz + 'px';
@@ -450,37 +552,13 @@ function buildFace(faceEl, sz, interior, outline, showText) {
   if (showText) {
     const textLayer = document.createElement('div');
     textLayer.className = 'sign-text-layer';
-
-    // Base text-box bounds
-    let tLeft, tTop, tWidth, tHeight;
-    if (shape === 'triangle') {
-      // Yield sign: center text at the centroid of the inverted inner triangle
-      const h_tri = sz * Math.sqrt(3) / 2;
-      const ty    = (sz - h_tri) / 2;
-      const centY = ty + h_tri / 3;      // centroid y of outer (= inner, same after scale)
-      const inR   = h_tri / 3;
-      const inset = ring * 1.15;
-      const sc    = Math.max(0, (inR - inset) / inR);
-      // At the centroid (1/3 from top in inverted tri), inner width = 2/3 × inner base
-      const innerBase = sz * sc;
-      tWidth  = innerBase * 0.68;
-      tHeight = h_tri * sc * 0.56;
-      tLeft   = (sz - tWidth) / 2;
-      tTop    = centY - tHeight / 2;
-    } else {
-      const padH = (shape === 'circle') ? ring + sz*0.08 : ring + sz*0.03;
-      const padV = ring + sz*0.03;
-      tLeft   = padH;
-      tTop    = padV;
-      tWidth  = sz - padH * 2;
-      tHeight = svgH - padV * 2;
-    }
+    const bounds = textBounds(shape, sz, svgH, ring);
 
     const resolvedColor = S.textColorMode === 'auto' ? textColor(interior) : S.textColorMode;
     const shadowPx = Math.round((S.shadowLength / 100) * sz * S.fontSize);
     Object.assign(textLayer.style, {
-      top: tTop+'px', left: tLeft+'px',
-      width: tWidth+'px', height: tHeight+'px',
+      top: bounds.top+'px', left: bounds.left+'px',
+      width: bounds.width+'px', height: bounds.height+'px',
       fontFamily: fontFamily(),
       fontWeight: S.weight,
       fontVariationSettings: `'wght' ${S.weight}`,
@@ -494,6 +572,13 @@ function buildFace(faceEl, sz, interior, outline, showText) {
     });
     textLayer.textContent = S.message;
     faceEl.appendChild(textLayer);
+  }
+
+  if (showText && S.crossbar && !faceEl.classList.contains('back')) {
+    const overlay = document.createElement('div');
+    overlay.className = 'sign-overlay-layer';
+    overlay.innerHTML = crossbarSVG(shape, sz, outline);
+    faceEl.appendChild(overlay);
   }
 }
 
@@ -680,6 +765,13 @@ function renderColors() {
   });
 }
 
+function renderCrossbarToggle() {
+  const btn = document.getElementById('crossbarBtn');
+  if (!btn) return;
+  btn.textContent = S.crossbar ? 'cross bar on' : 'cross bar off';
+  btn.classList.toggle('active', S.crossbar);
+}
+
 // ── Event listeners ────────────────────────────────────────────
 document.getElementById('variantRow').addEventListener('click', e => {
   const btn = e.target.closest('.variant-btn'); if (!btn) return;
@@ -697,6 +789,12 @@ document.getElementById('modeRow').addEventListener('click', e => {
   render();
 });
 
+document.getElementById('crossbarBtn').addEventListener('click', () => {
+  S.crossbar = !S.crossbar;
+  renderCrossbarToggle();
+  render();
+});
+
 document.getElementById('weightSlider').addEventListener('input', e => {
   S.weight = +e.target.value; render();
 });
@@ -708,6 +806,9 @@ document.getElementById('lineHeightSlider').addEventListener('input', e => {
 });
 document.getElementById('letterSpacingSlider').addEventListener('input', e => {
   S.letterSpacing = +e.target.value; render();
+});
+document.getElementById('strokeThicknessSlider').addEventListener('input', e => {
+  S.strokeThickness = +e.target.value; render();
 });
 document.getElementById('sizeSlider').addEventListener('input', e => {
   S.sizeScale = +e.target.value / 100; computeSize(); render();
@@ -770,10 +871,9 @@ async function getOTFont(variant) {
 async function saveSVG() {
   const SZ   = 1000;          // viewBox units — SVG is infinitely scalable
   const shape = S.shape;
-  const isRR  = (shape === 'rounded-rect');
-  const svgH  = isRR ? Math.round(SZ * 0.58) : SZ;
+  const svgH  = signSvgHeight(shape, SZ);
   const W = SZ, H = svgH;
-  const ring  = SZ * 0.115;
+  const ring  = outlineRingPx(shape, SZ, H);
 
   // ── 1. Load + parse font ───────────────────────────────────────
   let font;
@@ -797,19 +897,9 @@ async function saveSVG() {
   const lh = fSize * S.lineHeight;
 
   // ── 3. Text layout (mirrors canvas export geometry) ───────────
-  let centerY = H / 2;
-  let textW;
-  if (shape === 'triangle') {
-    const h_tri = SZ * Math.sqrt(3) / 2;
-    const ty    = (SZ - h_tri) / 2;
-    const inR   = h_tri / 3;
-    const sc    = Math.max(0, (inR - ring * 1.15) / inR);
-    centerY     = ty + h_tri / 3;
-    textW       = SZ * sc * 0.68;
-  } else {
-    const padH = (shape === 'circle') ? ring + SZ * 0.08 : ring + SZ * 0.03;
-    textW      = W - padH * 2;
-  }
+  const bounds = textBounds(shape, SZ, H, ring);
+  const centerY = bounds.centerY;
+  const textW = bounds.width;
 
   // Extra width per character from letter-spacing (em → px)
   const lsExtraPx = S.letterSpacing * fSize;
@@ -891,21 +981,7 @@ async function saveSVG() {
   const startY = centerY - totalH / 2 + lh / 2;   // vertical centre of first line
 
   // ── 4. Clip path (inner sign boundary) ────────────────────────
-  let clipEl = '';
-  if (shape === 'circle') {
-    clipEl = `<circle cx="${W/2}" cy="${H/2}" r="${(W/2 - ring).toFixed(2)}"/>`;
-  } else if (shape === 'triangle') {
-    const h_y  = SZ * Math.sqrt(3) / 2;
-    const sc   = Math.max(0, (h_y/3 - ring * 1.15) / (h_y/3));
-    clipEl = `<path d="${roundedPolyPath(yieldVerts(SZ, ring * 1.15), Math.max(2, SZ * 0.053 * sc))}"/>`;
-  } else if (shape === 'square') {
-    clipEl = `<rect x="${ring}" y="${ring}" width="${SZ-ring*2}" height="${SZ-ring*2}"/>`;
-  } else if (shape === 'rounded-rect') {
-    const ri = Math.max(SZ * 0.1 - ring * 0.5, 3);
-    clipEl = `<rect x="${ring}" y="${ring}" width="${SZ-ring*2}" height="${H-ring*2}" rx="${ri}"/>`;
-  } else if (shape === 'octagon') {
-    clipEl = `<polygon points="${octPts(SZ, ring)}"/>`;
-  }
+  const clipEl = interiorClipMarkup(shape, SZ, ring, H);
 
   // ── 5. Path builder: one text line → <path fill="…" d="…"/> ──
   function linePath(line, lineCenterY, offsetX, offsetY, fill) {
@@ -944,6 +1020,10 @@ async function saveSVG() {
     mainPaths += '\n  ' + linePath(line, startY + i*lh, 0, 0, resolvedColor);
   });
 
+  const crossbarFill = S.outline === 'aluminum' ? alumFill('alum_bar') : S.outline;
+  const crossbarDefs = S.crossbar && S.outline === 'aluminum' ? '\n    ' + alumGradSVG('alum_bar', H) : '';
+  const crossbarMarkup = S.crossbar ? '\n  ' + crossbarGroupMarkup(shape, SZ, crossbarFill, 'signInterior') : '';
+
   // ── 8. Sign shape elements ─────────────────────────────────────
   // Strip outer <svg> wrapper; extract any <defs> (e.g. aluminum gradients)
   // to merge into the main SVG's <defs> section.
@@ -962,7 +1042,7 @@ async function saveSVG() {
   <defs>
     <clipPath id="signInterior">
       ${clipEl}
-    </clipPath>${shapeDefs ? '\n    ' + shapeDefs : ''}
+    </clipPath>${shapeDefs ? '\n    ' + shapeDefs : ''}${crossbarDefs}
   </defs>
 
   <!-- sign shape -->
@@ -970,7 +1050,7 @@ async function saveSVG() {
 
   <!-- text outlines, clipped to sign interior -->
   <g clip-path="url(#signInterior)">${shadowPaths}${mainPaths}
-  </g>
+  </g>${crossbarMarkup}
 </svg>`;
 
   // ── 10. Download ───────────────────────────────────────────────
@@ -994,8 +1074,7 @@ async function saveImage() {
 
   const EXPORT_SZ = +(document.getElementById('exportRes').value);
   const shape     = S.shape;
-  const isRR      = (shape === 'rounded-rect');
-  const svgAspect = isRR ? 0.58 : 1.0;
+  const svgAspect = (shape === 'rounded-rect') ? 0.58 : 1.0;
   const W         = EXPORT_SZ;
   const H         = Math.round(EXPORT_SZ * svgAspect);
 
@@ -1015,11 +1094,9 @@ async function saveImage() {
   });
 
   // 2. Draw text (canvas word-wrap)
-  const ring  = W * 0.115;
-  const padH  = (shape === 'circle') ? ring + W*0.08 : ring + W*0.03;
-  const padV  = ring + W * 0.03;
-  const textW = W - padH * 2;
-  const textH = H - padV * 2;
+  const ring  = outlineRingPx(shape, W, H);
+  const bounds = textBounds(shape, W, H, ring);
+  const textW = bounds.width;
   const fSize = W * S.fontSize;
   const lh    = fSize * S.lineHeight;
 
@@ -1030,7 +1107,7 @@ async function saveImage() {
 
   const lines    = wrapText(ctx, S.message, textW);
   const totalH   = lines.length * lh;
-  const startY   = H/2 - totalH/2 + lh/2;
+  const startY   = bounds.centerY - totalH/2 + lh/2;
 
   // Long shadow — draw stacked copies behind the text
   const exportShadowPx = Math.round((S.shadowLength / 100) * fSize);
@@ -1049,6 +1126,18 @@ async function saveImage() {
   // Main text on top
   ctx.fillStyle = S.textColorMode === 'auto' ? textColor(S.interior) : S.textColorMode;
   lines.forEach((line, i) => ctx.fillText(line, W/2, startY + i*lh));
+
+  if (S.crossbar) {
+    const barSvg = crossbarSVG(shape, W, S.outline);
+    const barBlob = new Blob([barSvg], { type: 'image/svg+xml' });
+    const barUrl = URL.createObjectURL(barBlob);
+    await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, W, H); URL.revokeObjectURL(barUrl); res(); };
+      img.onerror = rej;
+      img.src = barUrl;
+    });
+  }
 
   // 3. Download
   canvas.toBlob(b => {
@@ -1081,6 +1170,7 @@ function wrapText(ctx, text, maxWidth) {
 // ── Init ───────────────────────────────────────────────────────
 renderShapes();
 renderColors();
+renderCrossbarToggle();
 computeSize();
 render();
 

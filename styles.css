@@ -319,7 +319,8 @@ textarea#msgInput:focus { border-color: #444; }
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .pause-btn:hover { border-color: #666; }
-.pause-btn.paused { background: #111; color: #fff; border-color: #111; }
+.pause-btn.paused,
+.pause-btn.active { background: #111; color: #fff; border-color: #111; }
 
 /* ── Shape row ───────────────────────────────────────────── */
 .shape-row { display: flex; gap: 2px; }
@@ -424,4 +425,10 @@ textarea#msgInput:focus { border-color: #444; }
   text-align: center;
   pointer-events: none;
   overflow: hidden;
+}
+
+.sign-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
