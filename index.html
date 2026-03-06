@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignMaker</title>
+  <!-- Red octagon favicon (SVG inline data URL — no file needed) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><polygon points='28.9,21.4 21.4,28.9 10.6,28.9 3.1,21.4 3.1,10.6 10.6,3.1 21.4,3.1 28.9,10.6' fill='red'/></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <!-- wawoff2: WASM WOFF2 decompressor (needed before opentype.js can parse .woff2) -->
+  <script src="https://cdn.jsdelivr.net/npm/wawoff2@2.0.1/build/decompress_binding.js"></script>
+  <!-- opentype.js: parses font + outputs glyph SVG path data for text outlining -->
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Full-screen 3D scene ── -->
+  <div class="right-panel" id="rightPanel">
+    <div class="ground-shadow" id="groundShadow"></div>
+    <div class="sign-spinner mode-spin" id="signSpinner">
+      <div class="sign-face front" id="signFront"></div>
+      <div class="sign-face back"  id="signBack"></div>
+    </div>
+  </div>
+
+  <!-- ── App logo (always visible on the background) ── -->
+  <!-- <div class="app-logo">Signmaker</div> -->
+
+  <!-- ── Draggable controls widget ── -->
+  <div class="widget" id="controlWidget">
+    <img class="screw screw-tl" src="assets/screw.png" alt="">
+    <img class="screw screw-tr" src="assets/screw.png" alt="">
+    <img class="screw screw-bl" src="assets/screw.png" alt="">
+    <img class="screw screw-br" src="assets/screw.png" alt="">
+
+    <div class="widget-header" id="widgetDragHandle" title="Click to expand / collapse · Drag to move">
+      <span class="widget-title">
+        Signmaker
+        <svg class="chevron-icon" width="13" height="8" viewBox="0 0 13 9" fill="none">
+          <path d="M1 7L6.5 1.5L12 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </div>
+
+    <div class="widget-body-wrap">
+    <div class="widget-body">
+
+      <div>
+        <!-- <div class="lbl">message</div> -->
+        <textarea id="msgInput">Sign</textarea>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">weight variability</div> -->
+        <input id="weightSlider" type="range" class="pill-slider"
+               min="100" max="900" value="700" step="1">
+        <div class="slider-hint"><span>thin</span><span>ultra</span></div>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">font size</div> -->
+        <input id="fontSizeSlider" type="range" class="pill-slider"
+               min="4" max="26" value="11" step="0.5">
+        <div class="slider-hint"><span>small</span><span>large</span></div>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">line height</div> -->
+        <input id="lineHeightSlider" type="range" class="pill-slider"
+               min="0.75" max="2.5" value="1.15" step="0.05">
+        <div class="slider-hint"><span>tight</span><span>loose</span></div>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">letter spacing</div> -->
+        <input id="letterSpacingSlider" type="range" class="pill-slider"
+               min="-0.1" max="0.5" value="0" step="0.005">
+        <div class="slider-hint"><span>tight</span><span>wide</span></div>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">style variant</div> -->
+        <div class="variant-row" id="variantRow">
+          <button class="variant-btn active" data-v="A">A</button>
+          <button class="variant-btn"        data-v="B">B</button>
+          <button class="variant-btn"        data-v="C">C</button>
+          <button class="variant-btn"        data-v="Line">Line</button>
+          <button class="variant-btn"        data-v="Core">Core</button>
+          <button class="variant-btn"        data-v="Zone">Zone</button>
+        </div>
+      </div>
+
+      <div>
+        <!-- <div class="lbl">shape</div> -->
+        <div class="shape-row" id="shapeSelector"></div>
+      </div>
+
+      <div>
+        <div class="lbl">text color</div>
+        <div class="color-row" id="textColorSelector"></div>
+      </div>
+
+      <div>
+        <div class="lbl">interior</div>
+        <div class="color-row" id="interiorSelector"></div>
+      </div>
+
+      <div>
+        <div class="lbl">outline</div>
+        <div class="color-row" id="outlineSelector"></div>
+      </div>
+
+
+      <div>
+        <div class="lbl">shadow color</div>
+        <div class="color-row" id="shadowColorSelector"></div>
+      </div>
+     
+
+      <div>
+        <div class="lbl">shadow length</div>
+        <input id="shadowLengthSlider" type="range" class="pill-slider"
+               min="0" max="150" value="0" step="1">
+        <div class="slider-hint"><span>none</span><span>long</span></div>
+      </div>
+
+      <div>
+        <div class="lbl">shadow angle</div>
+        <input id="shadowAngleSlider" type="range" class="pill-slider"
+               min="0" max="360" value="135" step="1">
+        <div class="slider-hint"><span>0°</span><span>360°</span></div>
+      </div>
+
+     
+
+      <div>
+        <div class="lbl">sign size</div>
+        <input id="sizeSlider" type="range" class="pill-slider"
+               min="40" max="150" value="100" step="1">
+        <div class="slider-hint"><span>small</span><span>large</span></div>
+      </div>
+
+      <hr class="section-rule">
+
+      <div>
+        <div class="lbl">animation</div>
+        <div class="toggle-row" id="modeRow" style="margin-bottom:6px">
+          <button class="toggle-btn active" data-m="spin">spin</button>
+          <button class="toggle-btn"        data-m="swing">swing</button>
+        </div>
+        <button class="pause-btn" id="pauseBtn" onclick="togglePause()">⏸ pause</button>
+      </div>
+
+      <div>
+        <div class="lbl">speed</div>
+        <input id="speedSlider" type="range" class="pill-slider"
+               min="1" max="12" value="6" step="0.5">
+        <div class="slider-hint"><span>slow</span><span>fast</span></div>
+      </div>
+
+      <div>
+        <div class="lbl">tilt y</div>
+        <input id="tiltYSlider" type="range" class="pill-slider"
+               min="-180" max="180" value="0" step="1">
+        <div class="slider-hint"><span>−180°</span><span>+180°</span></div>
+      </div>
+
+      <div>
+        <div class="lbl">tilt x</div>
+        <input id="tiltSlider" type="range" class="pill-slider"
+               min="-50" max="50" value="0" step="1">
+        <div class="slider-hint"><span>level</span><span>steep</span></div>
+      </div>
+
+      <div>
+        <div class="lbl">tilt z</div>
+        <input id="tiltZSlider" type="range" class="pill-slider"
+               min="-45" max="45" value="0" step="1">
+        <div class="slider-hint"><span>left</span><span>right</span></div>
+      </div>
+
+      <hr class="section-rule">
+
+      <div class="save-row">
+        <select id="exportRes" class="res-select">
+          <option value="svg">SVG — vector ∞</option>
+          <option value="1024">PNG 1k — web</option>
+          <option value="2048">PNG 2k — small print</option>
+          <option value="4096" selected>PNG 4k — 300 dpi / 13"</option>
+          <option value="8192">PNG 8k — 300 dpi / 27"</option>
+        </select>
+        <button class="btn-save" onclick="saveImage()">save image</button>
+      </div>
+
+    </div><!-- /.widget-body -->
+    </div><!-- /.widget-body-wrap -->
+  </div><!-- /.widget -->
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+const S = {
+  message:   "Sign",
+  shape:     'octagon',
+  interior:  'red',
+  outline:   'red',
+  weight:    100,
+  variant:   'A',
+  fontSize:  0.21,
+  animMode:  'spin',
+  speed:     6,       // 1–12; duration = 13 - speed seconds
+  tilt:      2,      // rotateX degrees (forward/back nod)
+  tiltY:     0,      // rotateY offset degrees (manual rotation)
+  tiltZ:     0,      // rotateZ degrees (left/right lean)
+  paused:    true,
+  sizeScale: .8,     // multiplier on auto-computed sign size
+  lineHeight: 1.15,   // text line-height
+  letterSpacing: 0,   // em units  (−0.1 … 0.5)
+  textColorMode: 'auto',  // 'auto' | hex color
+  shadowLength: 0,    // % of font size (0 = off)
+  shadowAngle:  135,  // degrees: 0=right, 90=down, 135=down-right
+  shadowColor:  '#111111',
+};
+
+let signSize = 300;  // updated by ResizeObserver
+
+// ── Color palette ──────────────────────────────────────────────
+const COLORS = [
+  { id: 'red',       hex: '#FF0000' },
+  { id: 'yellow',    hex: '#FFCC00' },
+  { id: 'blue',      hex: '#0000FF' },
+  { id: 'orange',    hex: '#FF6600' },
+  { id: 'darkgreen', hex: '#009900' },
+  { id: 'green',     hex: '#99FF00' },
+  { id: 'pink',     hex: 'rgb(255 119 179)'},
+  { id: 'black',     hex: '#111111' },
+  { id: 'white',     hex: '#FFFFFF' },
+  { id: 'aluminum',  hex: 'aluminum' },  // brushed metal — no ink color
+];
+
+// ── Aluminum gradient helpers ─────────────────────────────────
+// Multi-stop gradient simulating brushed/anodized aluminum
+const ALUM_STOPS = [
+  [0.00, '#a8aeb4'], [0.06, '#d0d8de'], [0.14, '#b8c0c8'],
+  [0.24, '#e4ecf0'], [0.36, '#ccd4da'], [0.48, '#f0f4f6'],
+  [0.58, '#d0d8de'], [0.70, '#e6ecee'], [0.82, '#b8c0c8'],
+  [0.92, '#ccd4d8'], [1.00, '#d8dee4'],
+];
+// CSS gradient string for swatches / DOM backgrounds
+function alumGradCSS() {
+  return 'linear-gradient(160deg, ' +
+    ALUM_STOPS.map(([p, c]) => `${c} ${(p*100).toFixed(0)}%`).join(', ') + ')';
+}
+// SVG linearGradient element (userSpaceOnUse, vertical over sz units)
+function alumGradSVG(id, sz) {
+  const stops = ALUM_STOPS.map(([p, c]) =>
+    `<stop offset="${(p*100).toFixed(0)}%" stop-color="${c}"/>`).join('');
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="${sz}" gradientUnits="userSpaceOnUse">${stops}</linearGradient>`;
+}
+// CSS fill value: 'url(#id)' for SVG, gradient string for CSS
+function alumFill(id) { return `url(#${id})`; }
+const SHAPES = ['circle', 'triangle', 'square', 'rounded-rect', 'octagon'];
+
+// ── Helpers ────────────────────────────────────────────────────
+function fontFamily() {
+  if (S.variant === 'B')    return "'SchengenB',    sans-serif";
+  if (S.variant === 'C')    return "'SchengenC',    sans-serif";
+  if (S.variant === 'Line') return "'SchengenLine', sans-serif";
+  if (S.variant === 'Core') return "'SchengenCore', sans-serif";
+  if (S.variant === 'Zone') return "'SchengenZone', sans-serif";
+  return "'SchengenA', sans-serif";
+}
+function fontName() {
+  if (S.variant === 'B')    return 'SchengenB';
+  if (S.variant === 'C')    return 'SchengenC';
+  if (S.variant === 'Line') return 'SchengenLine';
+  if (S.variant === 'Core') return 'SchengenCore';
+  if (S.variant === 'Zone') return 'SchengenZone';
+  return 'SchengenA';
+}
+function luminance(hex) {
+  if (hex === 'aluminum') return 0.65; // treat as light metal → dark text auto
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function textColor(bg) { return luminance(bg) > 0.38 ? '#000' : '#fff'; }
+
+// ── Long shadow CSS string ─────────────────────────────────────
+// lengthPx: number of stacked shadow steps (1 step = 1px)
+function buildLongShadow(lengthPx, color, angleDeg) {
+  if (lengthPx <= 0) return '';
+  const rad = angleDeg * Math.PI / 180;
+  const dx  = Math.cos(rad), dy = Math.sin(rad);
+  const n   = Math.round(lengthPx);
+  const parts = [];
+  for (let i = 1; i <= n; i++) {
+    parts.push(`${(dx * i).toFixed(2)}px ${(dy * i).toFixed(2)}px 0 ${color}`);
+  }
+  return parts.join(',');
+}
+
+// ── Geometry ───────────────────────────────────────────────────
+function octPts(size, inset) {
+  const cx = size/2, r = cx-inset;
+  return Array.from({length:8},(_,i)=>{
+    const a = Math.PI/8 + i*Math.PI/4;
+    return `${cx+r*Math.cos(a)},${cx+r*Math.sin(a)}`;
+  }).join(' ');
+}
+
+// ── Yield sign (inverted equilateral triangle, rounded corners) ─
+// Returns vertex array for an inverted triangle, scaled by `inset`
+function yieldVerts(size, inset) {
+  const cx = size / 2;
+  const h  = size * Math.sqrt(3) / 2;
+  const ty = (size - h) / 2;           // top y
+  const centY = ty + h / 3;            // centroid of inverted triangle
+  const inR = h / 3;                   // incircle radius
+  const sc  = inset > 0 ? Math.max(0, (inR - inset) / inR) : 1;
+  // Inverted: base at top (TL, TR), apex at bottom
+  return [
+    { x: 0,    y: ty },      // top-left
+    { x: size, y: ty },      // top-right
+    { x: cx,   y: ty + h },  // bottom apex
+  ].map(p => ({ x: cx + (p.x - cx) * sc, y: centY + (p.y - centY) * sc }));
+}
+
+// Generic rounded-polygon SVG path from vertex array + corner radius
+function roundedPolyPath(pts, r) {
+  const n = pts.length;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const A = pts[(i - 1 + n) % n];   // previous vertex
+    const B = pts[i];                  // current vertex
+    const C = pts[(i + 1) % n];       // next vertex
+    // Vectors from B toward its two neighbours
+    const BAx = A.x-B.x, BAy = A.y-B.y, laBA = Math.hypot(BAx,BAy);
+    const BCx = C.x-B.x, BCy = C.y-B.y, laBC = Math.hypot(BCx,BCy);
+    const uax = BAx/laBA, uay = BAy/laBA;
+    const ucx = BCx/laBC, ucy = BCy/laBC;
+    // Tangent length = r / tan(half-interior-angle)
+    const dot = Math.max(-1, Math.min(1, uax*ucx + uay*ucy));
+    const halfAngle = Math.acos(dot) / 2;
+    const t = Math.min(r / Math.tan(halfAngle), laBA * 0.45, laBC * 0.45);
+    // Tangent points on each incoming/outgoing edge
+    const p1 = { x: B.x + uax*t, y: B.y + uay*t };
+    const p2 = { x: B.x + ucx*t, y: B.y + ucy*t };
+    // Arc sweep: 0 = CCW, 1 = CW — determined by cross-product sign
+    const sweep = (uax*ucy - uay*ucx) < 0 ? 1 : 0;
+    d += i === 0 ? `M${p1.x.toFixed(2)},${p1.y.toFixed(2)}`
+                 : `L${p1.x.toFixed(2)},${p1.y.toFixed(2)}`;
+    d += ` A${r.toFixed(2)},${r.toFixed(2)} 0 0,${sweep} ${p2.x.toFixed(2)},${p2.y.toFixed(2)} `;
+  }
+  return d + 'Z';
+}
+
+// ── Sign SVG string ────────────────────────────────────────────
+function signSVG(shape, sz, interior, outline) {
+  const ring = sz * 0.115;
+  const svgH = (shape === 'rounded-rect') ? Math.round(sz * 0.58) : sz;
+  const ns   = 'xmlns="http://www.w3.org/2000/svg"';
+  const open = `<svg width="${sz}" height="${svgH}" viewBox="0 0 ${sz} ${svgH}" ${ns}>`;
+
+  // Resolve fill values — aluminum uses a gradient reference
+  const iAlum = (interior === 'aluminum'), oAlum = (outline === 'aluminum');
+  let defs = '';
+  if (iAlum || oAlum) {
+    defs = '<defs>';
+    if (oAlum) defs += alumGradSVG('alum_o', svgH);
+    if (iAlum) defs += alumGradSVG('alum_i', svgH);
+    defs += '</defs>';
+  }
+  const iFill = iAlum ? alumFill('alum_i') : interior;
+  const oFill = oAlum ? alumFill('alum_o') : outline;
+
+  if (shape === 'circle') return open + defs +
+    `<circle cx="${sz/2}" cy="${sz/2}" r="${sz/2}" fill="${oFill}"/>` +
+    `<circle cx="${sz/2}" cy="${sz/2}" r="${sz/2-ring}" fill="${iFill}"/>` + `</svg>`;
+  if (shape === 'triangle') {
+    // Yield sign: inverted equilateral triangle with rounded corners
+    const outerVerts = yieldVerts(sz, 0);
+    const innerVerts = yieldVerts(sz, ring * 1.15);
+    const outerR = sz * 0.053;
+    const h_y = sz * Math.sqrt(3) / 2;
+    const inR  = h_y / 3;
+    const sc   = Math.max(0, (inR - ring * 1.15) / inR);
+    const innerR = Math.max(2, outerR * sc);
+    return open + defs +
+      `<path d="${roundedPolyPath(outerVerts, outerR)}" fill="${oFill}"/>` +
+      `<path d="${roundedPolyPath(innerVerts, innerR)}" fill="${iFill}"/>` +
+      `</svg>`;
+  }
+  if (shape === 'square') return open + defs +
+    `<rect x="0" y="0" width="${sz}" height="${sz}" fill="${oFill}"/>` +
+    `<rect x="${ring}" y="${ring}" width="${sz-ring*2}" height="${sz-ring*2}" fill="${iFill}"/>` + `</svg>`;
+  if (shape === 'rounded-rect') {
+    const rh = svgH, rx = sz*0.1, ri = Math.max(rx-ring*0.5,3);
+    return open + defs +
+      `<rect x="0" y="0" width="${sz}" height="${rh}" rx="${rx}" fill="${oFill}"/>` +
+      `<rect x="${ring}" y="${ring}" width="${sz-ring*2}" height="${rh-ring*2}" rx="${ri}" fill="${iFill}"/>` + `</svg>`;
+  }
+  if (shape === 'octagon') return open + defs +
+    `<polygon points="${octPts(sz,0)}" fill="${oFill}"/>` +
+    `<polygon points="${octPts(sz,ring)}" fill="${iFill}"/>` + `</svg>`;
+  return open + '</svg>';
+}
+
+// Back face SVG (neutral grey)
+function backSVG(shape, sz) {
+  return signSVG(shape, sz, '#b8b4af', '#9a9590');
+}
+
+// Icon SVG for shape selector
+function iconSVG(shape, sz) {
+  const sw = 1.5, ns = 'xmlns="http://www.w3.org/2000/svg"';
+  const svgH = (shape === 'rounded-rect') ? Math.round(sz*0.58) : sz;
+  const open = `<svg width="${sz}" height="${svgH}" viewBox="0 0 ${sz} ${svgH}" ${ns}>`;
+  if (shape==='circle') return open+`<circle cx="${sz/2}" cy="${sz/2}" r="${sz/2-sw/2}" fill="none" stroke="#111" stroke-width="${sw}"/>`+'</svg>';
+  if (shape==='triangle') {
+    const v = yieldVerts(sz, sw/2);
+    return open + `<path d="${roundedPolyPath(v, sz*0.04)}" fill="none" stroke="#111" stroke-width="${sw}"/>` + '</svg>';
+  }
+  if (shape==='square') { const p=sw/2; return open+`<rect x="${p}" y="${p}" width="${sz-sw}" height="${sz-sw}" fill="none" stroke="#111" stroke-width="${sw}"/>`+'</svg>'; }
+  if (shape==='rounded-rect') { const rh=svgH,p=sw/2,rx=(sz-sw)*0.1; return open+`<rect x="${p}" y="${p}" width="${sz-sw}" height="${rh-sw}" rx="${rx}" fill="none" stroke="#111" stroke-width="${sw}"/>`+'</svg>'; }
+  if (shape==='octagon') return open+`<polygon points="${octPts(sz,sw/2)}" fill="none" stroke="#111" stroke-width="${sw}"/>`+'</svg>';
+  return open+'</svg>';
+}
+
+// ── Build sign into a face element ────────────────────────────
+function buildFace(faceEl, sz, interior, outline, showText) {
+  const shape = S.shape;
+  const ring  = sz * 0.115;
+  const isRR  = (shape === 'rounded-rect');
+  const svgH  = isRR ? Math.round(sz * 0.58) : sz;
+
+  faceEl.innerHTML = '';
+  faceEl.style.width  = sz + 'px';
+  faceEl.style.height = svgH + 'px';
+
+  const svgEl = document.createElement('div');
+  svgEl.innerHTML = (faceEl.classList.contains('back'))
+    ? backSVG(shape, sz)
+    : signSVG(shape, sz, interior, outline);
+  faceEl.appendChild(svgEl);
+
+  if (showText) {
+    const textLayer = document.createElement('div');
+    textLayer.className = 'sign-text-layer';
+
+    // Base text-box bounds
+    let tLeft, tTop, tWidth, tHeight;
+    if (shape === 'triangle') {
+      // Yield sign: center text at the centroid of the inverted inner triangle
+      const h_tri = sz * Math.sqrt(3) / 2;
+      const ty    = (sz - h_tri) / 2;
+      const centY = ty + h_tri / 3;      // centroid y of outer (= inner, same after scale)
+      const inR   = h_tri / 3;
+      const inset = ring * 1.15;
+      const sc    = Math.max(0, (inR - inset) / inR);
+      // At the centroid (1/3 from top in inverted tri), inner width = 2/3 × inner base
+      const innerBase = sz * sc;
+      tWidth  = innerBase * 0.68;
+      tHeight = h_tri * sc * 0.56;
+      tLeft   = (sz - tWidth) / 2;
+      tTop    = centY - tHeight / 2;
+    } else {
+      const padH = (shape === 'circle') ? ring + sz*0.08 : ring + sz*0.03;
+      const padV = ring + sz*0.03;
+      tLeft   = padH;
+      tTop    = padV;
+      tWidth  = sz - padH * 2;
+      tHeight = svgH - padV * 2;
+    }
+
+    const resolvedColor = S.textColorMode === 'auto' ? textColor(interior) : S.textColorMode;
+    const shadowPx = Math.round((S.shadowLength / 100) * sz * S.fontSize);
+    Object.assign(textLayer.style, {
+      top: tTop+'px', left: tLeft+'px',
+      width: tWidth+'px', height: tHeight+'px',
+      fontFamily: fontFamily(),
+      fontWeight: S.weight,
+      fontVariationSettings: `'wght' ${S.weight}`,
+      fontSize: (sz * S.fontSize)+'px',
+      lineHeight: S.lineHeight,
+      letterSpacing: S.letterSpacing + 'em',
+      color: resolvedColor,
+      wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+      overflow: 'visible',  // shadow extends; .sign-face clips at sign boundary
+      textShadow: buildLongShadow(shadowPx, S.shadowColor, S.shadowAngle),
+    });
+    textLayer.textContent = S.message;
+    faceEl.appendChild(textLayer);
+  }
+}
+
+// ── Render the 3D sign ─────────────────────────────────────────
+function render() {
+  const spinner = document.getElementById('signSpinner');
+  const front   = document.getElementById('signFront');
+  const back    = document.getElementById('signBack');
+  const shape   = S.shape;
+  const isRR    = (shape === 'rounded-rect');
+  const svgH    = isRR ? Math.round(signSize * 0.58) : signSize;
+
+  // Size the spinner container
+  spinner.style.width  = signSize + 'px';
+  spinner.style.height = svgH + 'px';
+
+  // Build both faces
+  buildFace(front, signSize, S.interior, S.outline, true);
+  buildFace(back,  signSize, S.interior, S.outline, false);
+
+  // Sync animation duration
+  const dur = Math.max(0.5, 13 - S.speed);
+  spinner.style.animationDuration = dur + 's';
+
+  // Sync mode class
+  spinner.classList.toggle('mode-spin',  S.animMode === 'spin');
+  spinner.classList.toggle('mode-swing', S.animMode === 'swing');
+
+  // Sync CSS custom properties on root
+  const root = document.documentElement;
+  root.style.setProperty('--tilt',  S.tilt  + 'deg');
+  root.style.setProperty('--tiltY', S.tiltY + 'deg');
+  root.style.setProperty('--tiltZ', S.tiltZ + 'deg');
+
+  // Sync ground shadow animation
+  const shadow = document.getElementById('groundShadow');
+  const shadowW = Math.round(signSize * 0.85);
+  shadow.style.width = shadowW + 'px';
+  shadow.style.bottom = Math.round(svgH * -0.04) + 'px';
+  shadow.style.animationDuration = dur + 's';
+  shadow.style.animationName = (S.animMode === 'spin') ? 'shadowSpin' : 'shadowSwing';
+  shadow.style.animationTimingFunction = (S.animMode === 'spin') ? 'linear' : 'ease-in-out';
+  shadow.style.animationIterationCount = 'infinite';
+
+  // Apply pause state
+  const playState = S.paused ? 'paused' : 'running';
+  spinner.style.animationPlayState = playState;
+  shadow.style.animationPlayState  = playState;
+}
+
+// ── Pause / play ───────────────────────────────────────────────
+// ── Widget collapse ────────────────────────────────────────────
+function toggleCollapse() {
+  document.getElementById('controlWidget').classList.toggle('collapsed');
+}
+
+function togglePause() {
+  S.paused = !S.paused;
+  const btn = document.getElementById('pauseBtn');
+  btn.textContent = S.paused ? '▶ play' : '⏸ pause';
+  btn.classList.toggle('paused', S.paused);
+  const spinner = document.getElementById('signSpinner');
+  const shadow  = document.getElementById('groundShadow');
+  const state   = S.paused ? 'paused' : 'running';
+  spinner.style.animationPlayState = state;
+  shadow.style.animationPlayState  = state;
+}
+
+// ── Compute optimal sign size from panel ───────────────────────
+function computeSize() {
+  const panel = document.getElementById('rightPanel');
+  if (!panel) return;
+  const W = panel.offsetWidth;
+  const H = panel.offsetHeight;
+  const isRR = (S.shape === 'rounded-rect');
+  const maxByW = W * 0.72;
+  const maxByH = isRR ? H * 0.85 / 0.58 : H * 0.78;
+  const base = Math.max(80, Math.floor(Math.min(maxByW, maxByH)));
+  signSize = Math.max(60, Math.floor(base * S.sizeScale));
+}
+
+// ── Shape selector ─────────────────────────────────────────────
+function renderShapes() {
+  const c = document.getElementById('shapeSelector');
+  c.innerHTML = '';
+  SHAPES.forEach(shape => {
+    const btn = document.createElement('button');
+    btn.className = 'shape-btn' + (S.shape === shape ? ' active' : '');
+    btn.innerHTML = iconSVG(shape, 28);
+    btn.addEventListener('click', () => {
+      S.shape = shape; computeSize(); renderShapes(); render();
+    });
+    c.appendChild(btn);
+  });
+}
+
+// ── Color selectors ────────────────────────────────────────────
+function makeColorBtn(hex, isActive, onClick) {
+  const btn    = document.createElement('button');
+  btn.className = 'color-btn' + (isActive ? ' active' : '');
+  const swatch = document.createElement('div');
+  swatch.className = 'swatch';
+  if (hex === 'aluminum') {
+    swatch.style.background = alumGradCSS();
+  } else {
+    swatch.style.background = hex;
+    if (hex === '#FFFFFF') swatch.style.boxShadow = 'inset 0 0 0 1px #ccc';
+  }
+  btn.appendChild(swatch);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function makeOutlineBtn(hex, isActive, onClick) {
+  const btn    = document.createElement('button');
+  btn.className = 'color-btn' + (isActive ? ' active' : '');
+  const swatch = document.createElement('div');
+  swatch.className = 'swatch';
+  if (hex === 'aluminum') {
+    swatch.style.background = alumGradCSS();
+    swatch.style.webkitMaskImage = 'radial-gradient(circle, transparent 43%, black 44%)';
+    swatch.style.maskImage       = 'radial-gradient(circle, transparent 43%, black 44%)';
+  } else {
+    swatch.style.background = 'transparent';
+    const bc = (hex === '#FFFFFF') ? '#ccc' : hex;
+    swatch.style.boxShadow = `inset 0 0 0 2.5px ${bc}`;
+  }
+  btn.appendChild(swatch);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function renderColors() {
+  // interior
+  const ci = document.getElementById('interiorSelector');
+  ci.innerHTML = '';
+  COLORS.forEach(({ hex }) => {
+    ci.appendChild(makeColorBtn(hex, S.interior === hex, () => {
+      S.interior = hex; renderColors(); render();
+    }));
+  });
+
+  // outline
+  const co = document.getElementById('outlineSelector');
+  co.innerHTML = '';
+  COLORS.forEach(({ hex }) => {
+    co.appendChild(makeOutlineBtn(hex, S.outline === hex, () => {
+      S.outline = hex; renderColors(); render();
+    }));
+  });
+
+  // text color — "auto" swatch + all 7 colors
+  const ct = document.getElementById('textColorSelector');
+  ct.innerHTML = '';
+
+  // Auto button: half-black / half-white split circle via SVG
+  const autoBtn = document.createElement('button');
+  autoBtn.className = 'color-btn' + (S.textColorMode === 'auto' ? ' active' : '');
+  const autoSvg = document.createElement('div');
+  autoSvg.className = 'swatch';
+  autoSvg.style.cssText = 'overflow:hidden;position:relative;border-radius:50%;box-shadow:inset 0 0 0 1px #ccc';
+  autoSvg.innerHTML =
+    '<div style="position:absolute;inset:0;background:#111;clip-path:polygon(0 0,50% 0,50% 100%,0 100%)"></div>' +
+    '<div style="position:absolute;inset:0;background:#fff;clip-path:polygon(50% 0,100% 0,100% 100%,50% 100%)"></div>';
+  autoBtn.appendChild(autoSvg);
+  autoBtn.addEventListener('click', () => {
+    S.textColorMode = 'auto'; renderColors(); render();
+  });
+  ct.appendChild(autoBtn);
+
+  COLORS.filter(c => c.hex !== 'aluminum').forEach(({ hex }) => {
+    ct.appendChild(makeColorBtn(hex, S.textColorMode === hex, () => {
+      S.textColorMode = hex; renderColors(); render();
+    }));
+  });
+
+  // shadow color (aluminum excluded — CSS color must be a solid value)
+  const cs = document.getElementById('shadowColorSelector');
+  cs.innerHTML = '';
+  COLORS.filter(c => c.hex !== 'aluminum').forEach(({ hex }) => {
+    cs.appendChild(makeColorBtn(hex, S.shadowColor === hex, () => {
+      S.shadowColor = hex; renderColors(); render();
+    }));
+  });
+}
+
+// ── Event listeners ────────────────────────────────────────────
+document.getElementById('variantRow').addEventListener('click', e => {
+  const btn = e.target.closest('.variant-btn'); if (!btn) return;
+  S.variant = btn.dataset.v;
+  document.querySelectorAll('.variant-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.v === S.variant));
+  render();
+});
+
+document.getElementById('modeRow').addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-btn'); if (!btn) return;
+  S.animMode = btn.dataset.m;
+  document.querySelectorAll('.toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.m === S.animMode));
+  render();
+});
+
+document.getElementById('weightSlider').addEventListener('input', e => {
+  S.weight = +e.target.value; render();
+});
+document.getElementById('fontSizeSlider').addEventListener('input', e => {
+  S.fontSize = +e.target.value / 100; render();
+});
+document.getElementById('lineHeightSlider').addEventListener('input', e => {
+  S.lineHeight = +e.target.value; render();
+});
+document.getElementById('letterSpacingSlider').addEventListener('input', e => {
+  S.letterSpacing = +e.target.value; render();
+});
+document.getElementById('sizeSlider').addEventListener('input', e => {
+  S.sizeScale = +e.target.value / 100; computeSize(); render();
+});
+document.getElementById('shadowLengthSlider').addEventListener('input', e => {
+  S.shadowLength = +e.target.value; render();
+});
+document.getElementById('shadowAngleSlider').addEventListener('input', e => {
+  S.shadowAngle = +e.target.value; render();
+});
+document.getElementById('speedSlider').addEventListener('input', e => {
+  S.speed = +e.target.value; render();
+});
+document.getElementById('tiltYSlider').addEventListener('input', e => {
+  S.tiltY = +e.target.value; render();
+});
+document.getElementById('tiltSlider').addEventListener('input', e => {
+  S.tilt = +e.target.value; render();
+});
+document.getElementById('tiltZSlider').addEventListener('input', e => {
+  S.tiltZ = +e.target.value; render();
+});
+document.getElementById('msgInput').addEventListener('input', e => {
+  S.message = e.target.value; render();
+});
+
+// ── ResizeObserver ─────────────────────────────────────────────
+new ResizeObserver(() => { computeSize(); render(); })
+    .observe(document.getElementById('rightPanel'));
+
+// ── opentype.js font loader (woff2 → sfnt → parsed font, cached) ──
+const _otCache = {};
+async function getOTFont(variant) {
+  if (_otCache[variant]) return _otCache[variant];
+
+  // 1. Wait for wawoff2 WASM to initialise (polls until Module.decompress appears)
+  await new Promise(resolve => {
+    const check = () => (typeof Module !== 'undefined' && typeof Module.decompress === 'function')
+      ? resolve() : setTimeout(check, 40);
+    check();
+  });
+
+  // 2. Fetch the .woff2 file
+  const url = `fonts/ABC Schengen/ABC Schengen ${variant} Variable/ABCSchengen${variant}Variable.woff2`;
+  const buf  = await (await fetch(url)).arrayBuffer();
+
+  // 3. Decompress WOFF2 → raw SFNT (TTF-like) bytes via wawoff2 WASM.
+  //    The result is a Uint8Array VIEW into WASM heap memory — sfnt.buffer starts
+  //    at offset 0 of the entire heap, not our data. We must slice to a fresh buffer.
+  const sfnt    = Module.decompress(new Uint8Array(buf));
+  const sfntBuf = sfnt.buffer.slice(sfnt.byteOffset, sfnt.byteOffset + sfnt.byteLength);
+
+  // 4. Parse with opentype.js
+  const font = opentype.parse(sfntBuf);
+  _otCache[variant] = font;
+  return font;
+}
+
+// ── Save SVG (text fully outlined — no font required to open) ─────
+async function saveSVG() {
+  const SZ   = 1000;          // viewBox units — SVG is infinitely scalable
+  const shape = S.shape;
+  const isRR  = (shape === 'rounded-rect');
+  const svgH  = isRR ? Math.round(SZ * 0.58) : SZ;
+  const W = SZ, H = svgH;
+  const ring  = SZ * 0.115;
+
+  // ── 1. Load + parse font ───────────────────────────────────────
+  let font;
+  try {
+    font = await getOTFont(S.variant);
+    if (font.variation) font.variation.set({ wght: S.weight });
+  } catch (e) {
+    alert('Could not load font for outlining: ' + e.message);
+    return;
+  }
+
+  // ── 2. Font metrics for baseline offset ───────────────────────
+  //   dominant-baseline:"middle" centres the em-box vertically.
+  //   In opentype, y is the baseline. Offset = (ascender + descender) / 2
+  //   where descender is negative, so offset < ascender (baseline is below center).
+  const fSize       = SZ * S.fontSize;
+  const ascPx       = font.ascender  / font.unitsPerEm * fSize;   // +
+  const desPx       = font.descender / font.unitsPerEm * fSize;   // −
+  const baselineOff = (ascPx + desPx) / 2;  // baseline = lineCenterY + this
+
+  const lh = fSize * S.lineHeight;
+
+  // ── 3. Text layout (mirrors canvas export geometry) ───────────
+  let centerY = H / 2;
+  let textW;
+  if (shape === 'triangle') {
+    const h_tri = SZ * Math.sqrt(3) / 2;
+    const ty    = (SZ - h_tri) / 2;
+    const inR   = h_tri / 3;
+    const sc    = Math.max(0, (inR - ring * 1.15) / inR);
+    centerY     = ty + h_tri / 3;
+    textW       = SZ * sc * 0.68;
+  } else {
+    const padH = (shape === 'circle') ? ring + SZ * 0.08 : ring + SZ * 0.03;
+    textW      = W - padH * 2;
+  }
+
+  // Extra width per character from letter-spacing (em → px)
+  const lsExtraPx = S.letterSpacing * fSize;
+
+  const scale = fSize / font.unitsPerEm;
+
+  const lineCache = Object.create(null);
+
+  // Build a line as cached per-glyph SVG path fragments. We keep glyph outlines
+  // at their origin positions and move the whole line with SVG transforms later.
+  function buildLineLayout(line) {
+    if (lineCache[line]) return lineCache[line];
+    const glyphs = font.stringToGlyphs(line);
+    const parts = [];
+    let penX = 0;
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+
+    for (let i = 0; i < glyphs.length; i++) {
+      const glyph = glyphs[i];
+      const next = glyphs[i + 1];
+      const gPath = glyph.getPath(penX, 0, fSize);
+      const bb = gPath.getBoundingBox();
+      const d = gPath.toPathData(2);
+      if (d) parts.push(d);
+
+      if (isFinite(bb.x1) && isFinite(bb.y1) && isFinite(bb.x2) && isFinite(bb.y2)) {
+        x1 = Math.min(x1, bb.x1);
+        y1 = Math.min(y1, bb.y1);
+        x2 = Math.max(x2, bb.x2);
+        y2 = Math.max(y2, bb.y2);
+      }
+
+      const adv = (glyph.advanceWidth || font.unitsPerEm) * scale;
+      const kern = next ? font.getKerningValue(glyph, next) * scale : 0;
+      penX += adv + kern;
+      if (i < glyphs.length - 1) penX += lsExtraPx;
+    }
+
+    const layout = {
+      parts,
+      bb: {
+        x1: isFinite(x1) ? x1 : 0,
+        y1: isFinite(y1) ? y1 : 0,
+        x2: isFinite(x2) ? x2 : 0,
+        y2: isFinite(y2) ? y2 : 0,
+      }
+    };
+    lineCache[line] = layout;
+    return layout;
+  }
+
+  function lineVisualWidth(line) {
+    if (!line.trim()) return 0;
+    const { bb } = buildLineLayout(line);
+    return bb.x2 - bb.x1;
+  }
+
+  // Word-wrap uses the same glyph layout logic as final SVG rendering.
+  function wrapOT(text, maxW) {
+    const lines = [];
+    for (const para of text.split('\n')) {
+      const words = para.split(' ').filter(Boolean);
+      let cur = '';
+      for (const w of words) {
+        const test = cur ? cur + ' ' + w : w;
+        const testW = lineVisualWidth(test);
+        if (testW > maxW && cur) {
+          lines.push(cur); cur = w;
+        } else { cur = test; }
+      }
+      if (cur) lines.push(cur);
+      if (!para.trim()) lines.push('');
+    }
+    return lines;
+  }
+
+  const lines  = wrapOT(S.message, textW);
+  const totalH = lines.length * lh;
+  const startY = centerY - totalH / 2 + lh / 2;   // vertical centre of first line
+
+  // ── 4. Clip path (inner sign boundary) ────────────────────────
+  let clipEl = '';
+  if (shape === 'circle') {
+    clipEl = `<circle cx="${W/2}" cy="${H/2}" r="${(W/2 - ring).toFixed(2)}"/>`;
+  } else if (shape === 'triangle') {
+    const h_y  = SZ * Math.sqrt(3) / 2;
+    const sc   = Math.max(0, (h_y/3 - ring * 1.15) / (h_y/3));
+    clipEl = `<path d="${roundedPolyPath(yieldVerts(SZ, ring * 1.15), Math.max(2, SZ * 0.053 * sc))}"/>`;
+  } else if (shape === 'square') {
+    clipEl = `<rect x="${ring}" y="${ring}" width="${SZ-ring*2}" height="${SZ-ring*2}"/>`;
+  } else if (shape === 'rounded-rect') {
+    const ri = Math.max(SZ * 0.1 - ring * 0.5, 3);
+    clipEl = `<rect x="${ring}" y="${ring}" width="${SZ-ring*2}" height="${H-ring*2}" rx="${ri}"/>`;
+  } else if (shape === 'octagon') {
+    clipEl = `<polygon points="${octPts(SZ, ring)}"/>`;
+  }
+
+  // ── 5. Path builder: one text line → <path fill="…" d="…"/> ──
+  function linePath(line, lineCenterY, offsetX, offsetY, fill) {
+    if (!line.trim()) return '';
+    const { parts, bb } = buildLineLayout(line);
+    if (!parts.length) return '';
+
+    // Horizontal: center visual glyph mass at W/2
+    const cx = isFinite(bb.x1) && isFinite(bb.x2)
+      ? (bb.x1 + bb.x2) / 2
+      : lineVisualWidth(line) / 2;
+    const dx = W / 2 + offsetX - cx;
+
+    // Vertical: baseline at y=0 shifts to the requested line center.
+    const dy = lineCenterY + baselineOff + offsetY;
+    return `<g fill="${fill}" transform="translate(${dx.toFixed(2)} ${dy.toFixed(2)})">${parts.map(d => `<path d="${d}"/>`).join('')}</g>`;
+  }
+
+  // ── 6. Long shadow path layers ────────────────────────────────
+  let shadowPaths = '';
+  const shadowPx = Math.round((S.shadowLength / 100) * fSize);
+  if (shadowPx > 0) {
+    const rad    = S.shadowAngle * Math.PI / 180;
+    const dx     = Math.cos(rad), dy = Math.sin(rad);
+    const stride = shadowPx > 300 ? 3 : shadowPx > 100 ? 2 : 1;
+    for (let step = shadowPx; step >= 1; step -= stride)
+      lines.forEach((line, i) => {
+        shadowPaths += '\n  ' + linePath(line, startY + i*lh, dx*step, dy*step, S.shadowColor);
+      });
+  }
+
+  // ── 7. Main text path layers ───────────────────────────────────
+  const resolvedColor = S.textColorMode === 'auto' ? textColor(S.interior) : S.textColorMode;
+  let mainPaths = '';
+  lines.forEach((line, i) => {
+    mainPaths += '\n  ' + linePath(line, startY + i*lh, 0, 0, resolvedColor);
+  });
+
+  // ── 8. Sign shape elements ─────────────────────────────────────
+  // Strip outer <svg> wrapper; extract any <defs> (e.g. aluminum gradients)
+  // to merge into the main SVG's <defs> section.
+  let shapeDefs = '';
+  const innerShapes = signSVG(shape, SZ, S.interior, S.outline)
+    .replace(/^<svg[^>]*>/, '')
+    .replace(/<\/svg>\s*$/, '')
+    .replace(/<defs>([\s\S]*?)<\/defs>/gi, (_, content) => { shapeDefs += content; return ''; })
+    .trim();
+
+  // ── 9. Assemble (no font needed — all text is outlined paths) ──
+  const svgOut = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
+     xmlns="http://www.w3.org/2000/svg">
+  <!-- Text is fully outlined — no font required to open this file -->
+  <defs>
+    <clipPath id="signInterior">
+      ${clipEl}
+    </clipPath>${shapeDefs ? '\n    ' + shapeDefs : ''}
+  </defs>
+
+  <!-- sign shape -->
+  ${innerShapes}
+
+  <!-- text outlines, clipped to sign interior -->
+  <g clip-path="url(#signInterior)">${shadowPaths}${mainPaths}
+  </g>
+</svg>`;
+
+  // ── 10. Download ───────────────────────────────────────────────
+  const blob = new Blob([svgOut], { type: 'image/svg+xml' });
+  const blobUrl = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = blobUrl;
+  a.download = 'sign.svg';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 2000);
+}
+
+// ── Save PNG ───────────────────────────────────────────────────
+async function saveImage() {
+  if (document.getElementById('exportRes').value === 'svg') {
+    return saveSVG();
+  }
+  await document.fonts.ready;
+
+  const EXPORT_SZ = +(document.getElementById('exportRes').value);
+  const shape     = S.shape;
+  const isRR      = (shape === 'rounded-rect');
+  const svgAspect = isRR ? 0.58 : 1.0;
+  const W         = EXPORT_SZ;
+  const H         = Math.round(EXPORT_SZ * svgAspect);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // 1. Draw sign SVG
+  const svgStr = signSVG(shape, W, S.interior, S.outline);
+  const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url    = URL.createObjectURL(blob);
+  await new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, W, H); URL.revokeObjectURL(url); res(); };
+    img.onerror = rej;
+    img.src = url;
+  });
+
+  // 2. Draw text (canvas word-wrap)
+  const ring  = W * 0.115;
+  const padH  = (shape === 'circle') ? ring + W*0.08 : ring + W*0.03;
+  const padV  = ring + W * 0.03;
+  const textW = W - padH * 2;
+  const textH = H - padV * 2;
+  const fSize = W * S.fontSize;
+  const lh    = fSize * S.lineHeight;
+
+  ctx.font          = `${S.weight} ${fSize}px "${fontName()}"`;
+  ctx.textAlign     = 'center';
+  ctx.textBaseline  = 'middle';
+  ctx.letterSpacing = (S.letterSpacing * fSize).toFixed(2) + 'px';
+
+  const lines    = wrapText(ctx, S.message, textW);
+  const totalH   = lines.length * lh;
+  const startY   = H/2 - totalH/2 + lh/2;
+
+  // Long shadow — draw stacked copies behind the text
+  const exportShadowPx = Math.round((S.shadowLength / 100) * fSize);
+  if (exportShadowPx > 0) {
+    const rad   = S.shadowAngle * Math.PI / 180;
+    const dx    = Math.cos(rad), dy = Math.sin(rad);
+    // Subsample at higher step counts so export stays fast at 8k
+    const stride = exportShadowPx > 400 ? 3 : exportShadowPx > 150 ? 2 : 1;
+    ctx.fillStyle = S.shadowColor;
+    for (let step = exportShadowPx; step >= 1; step -= stride) {
+      lines.forEach((line, i) =>
+        ctx.fillText(line, W/2 + dx * step, startY + i * lh + dy * step));
+    }
+  }
+
+  // Main text on top
+  ctx.fillStyle = S.textColorMode === 'auto' ? textColor(S.interior) : S.textColorMode;
+  lines.forEach((line, i) => ctx.fillText(line, W/2, startY + i*lh));
+
+  // 3. Download
+  canvas.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'sign.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, 'image/png');
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    const words = para.split(' ').filter(Boolean);
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxWidth && cur) {
+        lines.push(cur); cur = w;
+      } else { cur = test; }
+    }
+    if (cur) lines.push(cur);
+    if (!para.trim()) lines.push(''); // preserve blank lines
+  }
+  return lines;
+}
+
+// ── Init ───────────────────────────────────────────────────────
+renderShapes();
+renderColors();
+computeSize();
+render();
+
+// ── Widget drag ────────────────────────────────────────────────
+(function() {
+  const widget = document.getElementById('controlWidget');
+  const handle = document.getElementById('widgetDragHandle');
+  let ox = 0, oy = 0, dragging = false;
+
+  // Start collapsed
+  widget.classList.add('collapsed');
+
+  // Place widget top-right so it doesn't cover the logo
+  widget.style.top  = '20px';
+  widget.style.left = '20px';
+
+  let didDrag = false;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    didDrag  = false;
+    const r = widget.getBoundingClientRect();
+    ox = e.clientX - r.left;
+    oy = e.clientY - r.top;
+    handle.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    let x = e.clientX - ox;
+    let y = e.clientY - oy;
+    const headerH = handle.offsetHeight;
+    x = Math.max(0, Math.min(window.innerWidth  - widget.offsetWidth, x));
+    y = Math.max(0, Math.min(window.innerHeight - headerH,            y));
+    widget.style.left = x + 'px';
+    widget.style.top  = y + 'px';
+    didDrag = true;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.style.cursor = '';
+  });
+
+  handle.addEventListener('click', () => {
+    if (didDrag) { didDrag = false; return; }
+    toggleCollapse();
+  });
+})();
+</script>
+</body>
+</html>

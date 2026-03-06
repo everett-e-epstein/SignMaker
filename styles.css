@@ -1,0 +1,427 @@
+/* ── Variable Font Faces ─────────────────────────────────── */
+@font-face {
+  font-family: 'SchengenA';
+  src: url('fonts/ABC Schengen/ABC Schengen A Variable/ABCSchengenAVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+@font-face {
+  font-family: 'SchengenB';
+  src: url('fonts/ABC Schengen/ABC Schengen B Variable/ABCSchengenBVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+@font-face {
+  font-family: 'SchengenC';
+  src: url('fonts/ABC Schengen/ABC Schengen C Variable/ABCSchengenCVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+@font-face {
+  font-family: 'SchengenLine';
+  src: url('fonts/ABC Schengen/ABC Schengen Line Variable/ABCSchengenLineVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+@font-face {
+  font-family: 'SchengenCore';
+  src: url('fonts/ABC Schengen/ABC Schengen Core Variable/ABCSchengenCoreVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+@font-face {
+  font-family: 'SchengenZone';
+  src: url('fonts/ABC Schengen/ABC Schengen Zone Variable/ABCSchengenZoneVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal;
+}
+
+/* ── Reset ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── App shell ───────────────────────────────────────────── */
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: #e5e2dd;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: #111;
+}
+.app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+
+/* ── App logo (fixed on background) ─────────────────────── */
+.app-logo {
+  position: fixed;
+  top: 22px; left: 24px;
+  z-index: 5;
+  font-family: 'SchengenA', sans-serif;
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: rgba(255,255,255,0.90);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Draggable floating widget ───────────────────────────── */
+.widget {
+  position: fixed;
+  /* position set by JS */
+  width: 350px;
+  /* brushed-aluminum texture — same stops as ALUM_STOPS in JS */
+  background: linear-gradient(160deg,
+    #a8aeb4  0%, #d0d8de  6%, #b8c0c8 14%,
+    #e4ecf0 24%, #ccd4da 36%, #f0f4f6 48%,
+    #d0d8de 58%, #e6ecee 70%, #b8c0c8 82%,
+    #ccd4d8 92%, #d8dee4 100%);
+  z-index: 190;
+  display: flex; flex-direction: column;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.28),
+    0 2px 8px  rgba(0,0,0,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.55), /* top highlight edge */
+    inset 0 -1px 0 rgba(0,0,0,0.12);      /* bottom shadow edge */
+  /* overflow kept visible so screws aren't clipped */
+  user-select: none;
+}
+
+/* ── Corner screws ───────────────────────────────────────── */
+.screw {
+  position: absolute;
+  width: 18px; height: 18px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.85;
+}
+.screw-tl { top:    7px; left:  7px; transform: rotate(17deg);  }
+.screw-tr { top:    7px; right: 7px; transform: rotate(73deg);  }
+.screw-bl { bottom: 7px; left:  7px; transform: rotate(142deg); }
+.screw-br { bottom: 7px; right: 7px; transform: rotate(55deg);  }
+
+/* ── Widget header / drag handle ─────────────────────────── */
+.widget-header {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 40px;
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+  border-radius: 12px;
+  cursor: grab;
+  background: linear-gradient(105deg,
+    #cdd3d8  0%, #e2e8ec 18%, #c8d0d6 38%,
+    #dde4e8 55%, #c4ccd2 72%, #dae0e4 88%, #ccd2d8 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  user-select: none;
+}
+.widget-header:active { cursor: grabbing; }
+
+.widget-title {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: 'SchengenA';
+  font-size: 30px;
+  font-variation-settings: "wght" 400;
+  color: rgba(60, 68, 74, 0.55);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-shadow:
+    0 -1px 1px rgba(0,0,0,0.35),
+    0  1px 1px rgba(255,255,255,0.75);
+}
+
+/* chevron lives inline with the title text */
+.chevron-icon {
+  flex-shrink: 0;
+  /* match the deboss colour of the title */
+  color: rgba(60, 68, 74, 0.45);
+  filter:
+    drop-shadow(0 -1px 0px rgba(0,0,0,0.3))
+    drop-shadow(0  1px 0px rgba(255,255,255,0.7));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.widget.collapsed .chevron-icon {
+  transform: rotate(180deg);
+}
+
+/* ── Widget body wrapper (clips during collapse) ─────────── */
+.widget-body-wrap { overflow: hidden; }
+
+/* ── Widget scrollable body ──────────────────────────────── */
+.widget-body {
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  padding: 16px 18px 24px;
+  display: flex; flex-direction: column; gap: 18px;
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              padding   0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity   0.20s ease;
+}
+.widget.collapsed .widget-body {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+/* ── Save row (inside widget) ────────────────────────────── */
+.save-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn-save {
+  border: 1.5px solid #aaa;
+  background: linear-gradient(160deg,
+    rgba(226,232,236,0.92) 0%,
+    rgba(198,206,212,0.95) 48%,
+    rgba(216,222,226,0.92) 100%);
+  color: rgba(60, 68, 74, 0.55);
+  font-size: 13px;
+  font-family: "SchengenA";
+  padding: 7px 16px;
+  border-radius: 24px;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  text-shadow:
+    0 -1px 1px rgba(0,0,0,0.35),
+    0  1px 1px rgba(255,255,255,0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    inset 0 -1px 0 rgba(0,0,0,0.10);
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.btn-save:hover {
+  background: linear-gradient(160deg,
+    rgba(232,238,242,0.96) 0%,
+    rgba(206,214,220,0.98) 48%,
+    rgba(222,228,232,0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    inset 0 -1px 0 rgba(0,0,0,0.12);
+}
+.res-select {
+  flex: 1; min-width: 0;
+  border: 1.5px solid #aaa;
+  background-color: transparent;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233c444a' fill-opacity='.55'/%3E%3C/svg%3E"),
+    linear-gradient(160deg,
+      rgba(226,232,236,0.92) 0%,
+      rgba(198,206,212,0.95) 48%,
+      rgba(216,222,226,0.92) 100%);
+  color: rgba(60, 68, 74, 0.55);
+  font-size: 12px;
+  font-family: "SchengenA";
+  padding: 7px 8px;
+  border-radius: 24px;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  text-shadow:
+    0 -1px 1px rgba(0,0,0,0.35),
+    0  1px 1px rgba(255,255,255,0.75);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 10px center, center;
+  background-size: 10px 6px, auto;
+  padding-right: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    inset 0 -1px 0 rgba(0,0,0,0.10);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.res-select:hover {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233c444a' fill-opacity='.55'/%3E%3C/svg%3E"),
+    linear-gradient(160deg,
+      rgba(232,238,242,0.96) 0%,
+      rgba(206,214,220,0.98) 48%,
+      rgba(222,228,232,0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    inset 0 -1px 0 rgba(0,0,0,0.12);
+}
+
+.lbl {
+  font-size: 13px;
+  font-weight: 400;
+  color: #111;
+  margin-bottom: 7px;
+}
+.section-rule {
+  border: none;
+  border-top: 1px solid rgba(0,0,0,0.10);
+  margin: 2px 0;
+}
+
+textarea#msgInput {
+  display: block;
+  width: 100%;
+  height: 100px;
+  border: 1.5px solid #aaa;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 8px 10px;
+  resize: none;
+  border-radius: 3px;
+  outline: none;
+  color: #111;
+  line-height: 1.4;
+}
+textarea#msgInput:focus { border-color: #444; }
+
+/* ── Pill sliders ────────────────────────────────────────── */
+.pill-slider {
+  -webkit-appearance: none; appearance: none;
+  display: block; width: 100%; height: 28px;
+  background: rgba(255,255,255,0.82);
+  border-radius: 14px;
+  border: 1.5px solid #c4c0bb;
+  outline: none; cursor: pointer; padding: 0 3px;
+}
+.pill-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 1.5px solid #aaa;
+  cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+.pill-slider::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 1.5px solid #aaa;
+  cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+.slider-hint {
+  font-size: 10.5px; color: #999;
+  margin-top: 3px; display: flex; justify-content: space-between;
+}
+
+/* ── Variant buttons ─────────────────────────────────────── */
+.variant-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.variant-btn {
+  flex: 1; height: 28px;
+  border: 1.5px solid #c4c0bb; background: transparent;
+  border-radius: 14px; font-size: 13px; font-family: inherit;
+  cursor: pointer; color: #111;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.variant-btn.active { background: #111; color: #fff; border-color: #111; }
+.variant-btn:not(.active):hover { border-color: #666; }
+
+/* ── Toggle pill (spin / swing) ──────────────────────────── */
+.toggle-row { display: flex; gap: 6px; }
+.toggle-btn {
+  flex: 1; height: 28px;
+  border: 1.5px solid #c4c0bb; background: transparent;
+  border-radius: 14px; font-size: 12px; font-family: inherit;
+  cursor: pointer; color: #111;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.toggle-btn.active { background: #111; color: #fff; border-color: #111; }
+.toggle-btn:not(.active):hover { border-color: #666; }
+.pause-btn {
+  display: block; width: 100%; height: 28px;
+  border: 1.5px solid #c4c0bb; background: transparent;
+  border-radius: 14px; font-size: 12px; font-family: inherit;
+  cursor: pointer; color: #111;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.pause-btn:hover { border-color: #666; }
+.pause-btn.paused { background: #111; color: #fff; border-color: #111; }
+
+/* ── Shape row ───────────────────────────────────────────── */
+.shape-row { display: flex; gap: 2px; }
+.shape-btn {
+  width: 40px; height: 40px; display: flex;
+  align-items: center; justify-content: center;
+  background: transparent; border: none; cursor: pointer;
+  border-radius: 5px; transition: background 0.1s; padding: 0; flex-shrink: 0;
+}
+.shape-btn:hover { background: rgba(0,0,0,0.06); }
+.shape-btn.active { background: rgba(0,0,0,0.09); }
+.shape-btn svg { display: block; overflow: visible; }
+
+/* ── Color rows ──────────────────────────────────────────── */
+.color-row { display: flex; gap: 0; }
+.color-btn {
+  width: 32px; height: 32px; display: flex;
+  align-items: center; justify-content: center;
+  background: transparent; border: none; cursor: pointer;
+  border-radius: 5px; padding: 0;
+}
+.color-btn:hover .swatch { transform: scale(1.12); }
+.color-btn.active .swatch { box-shadow: 0 0 0 2px #e5e2dd, 0 0 0 4px rgba(0,0,0,0.28); }
+.swatch {
+  width: 20px; height: 20px; border-radius: 50%;
+  transition: transform 0.1s; flex-shrink: 0;
+}
+
+/* ── 3D Scene / Right panel (full viewport) ──────────────── */
+.right-panel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Perspective for the 3D scene — updated by JS */
+  perspective: 900px;
+  perspective-origin: 50% 42%;
+  background: #0394ff;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* ── Ground shadow (synced to spin) ──────────────────────── */
+.ground-shadow {
+  position: absolute;
+  bottom: 12%;
+  left: 50%;
+  width: 60%;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.22) 0%, transparent 70%);
+  filter: blur(8px);
+  transform-origin: center;
+  /* JS drives the animation-name via class */
+}
+@keyframes shadowSpin {
+  0%,100% { transform: translateX(-50%) scaleX(1.0); opacity: 0.22; }
+  25%,75%  { transform: translateX(-50%) scaleX(0.12); opacity: 0.05; }
+  50%      { transform: translateX(-50%) scaleX(1.0); opacity: 0.22; }
+}
+@keyframes shadowSwing {
+  0%,100% { transform: translateX(-50%) scaleX(0.9); opacity: 0.20; }
+  50%     { transform: translateX(-50%) scaleX(0.9); opacity: 0.20; }
+}
+
+/* ── Sign spinner (3D rotating element) ──────────────────── */
+.sign-spinner {
+  position: relative;
+  transform-style: preserve-3d;
+  /* animation-name toggled between spinY / swingY by JS class */
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes spinY {
+  from { transform: rotateZ(var(--tiltZ,0deg)) rotateX(var(--tilt,0deg)) rotateY(calc(var(--tiltY,0deg) +   0deg)); }
+  to   { transform: rotateZ(var(--tiltZ,0deg)) rotateX(var(--tilt,0deg)) rotateY(calc(var(--tiltY,0deg) + 360deg)); }
+}
+@keyframes swingY {
+  0%   { transform: rotateZ(var(--tiltZ,0deg)) rotateX(var(--tilt,0deg)) rotateY(calc(var(--tiltY,0deg) + -28deg)); }
+  50%  { transform: rotateZ(var(--tiltZ,0deg)) rotateX(var(--tilt,0deg)) rotateY(calc(var(--tiltY,0deg) +  28deg)); }
+  100% { transform: rotateZ(var(--tiltZ,0deg)) rotateX(var(--tilt,0deg)) rotateY(calc(var(--tiltY,0deg) + -28deg)); }
+}
+.sign-spinner.mode-spin  { animation-name: spinY;  animation-timing-function: linear; }
+.sign-spinner.mode-swing { animation-name: swingY; animation-timing-function: ease-in-out; }
+
+/* ── Sign faces ──────────────────────────────────────────── */
+.sign-face {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  backface-visibility: hidden;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+  overflow: hidden; /* clips long shadow to sign bounding box */
+}
+.sign-face.front { transform: translateZ(3px); }
+.sign-face.back  { transform: rotateY(180deg) translateZ(3px); }
+
+/* ── Text layer on front face ────────────────────────────── */
+.sign-text-layer {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  overflow: hidden;
+}
